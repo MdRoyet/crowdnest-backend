@@ -4,6 +4,8 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes";
+import campaignRoutes from "./routes/campaignRoutes";
+import contributionRoutes from "./routes/contributionRoutes";
 
 const app: Application = express();
 
@@ -49,5 +51,7 @@ app.get("/", (_req: Request, res: Response) => {
 });
 
 app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/campaigns", campaignRoutes);
+app.use("/api/contributions", contributionRoutes);
 
 export default app;
