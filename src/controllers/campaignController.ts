@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Campaign from "../models/Campaign";
+import { createNotification } from "./notificationController";
 
 // GET /api/campaigns — public, all approved campaigns
 export const getCampaigns = async (req: Request, res: Response) => {
@@ -51,7 +52,7 @@ export const getCampaignById = async (req: Request, res: Response) => {
   }
 };
 
-// POST /api/campaigns — create a campaign
+// POST /api/campaigns — create a campaign (status = pending)
 export const createCampaign = async (req: Request, res: Response) => {
   try {
     const {
@@ -85,7 +86,7 @@ export const createCampaign = async (req: Request, res: Response) => {
       creator_name: creator_name || "Unknown",
       creator_email,
       creator_id: creator_id || undefined,
-      status: "approved",
+      status: "pending",
     });
 
     res.status(201).json(campaign);
@@ -129,5 +130,76 @@ export const getCreatorStats = async (req: Request, res: Response) => {
     });
   } catch {
     res.status(500).json({ message: "Failed to fetch stats." });
+  }
+};
+
+// GET /api/campaigns/pending — get all pending campaigns (admin)
+export const getPendingCampaigns = async (_req: Request, res: Response) => {
+  try {
+    const campaigns = await Campaign.find({ status: "pending" })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(campaigns);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch campaigns." });
+  }
+};
+
+// PATCH /api/campaigns/:id/approve — approve campaign (admin)
+export const approveCampaign = async (req: Request, res: Response) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id);
+    if (!campaign) {
+      return res.status(404).json({ message: "Campaign not found." });
+    }
+
+    campaign.status = "approved";
+    await campaign.save();
+
+    await createNotification(
+      `Your campaign "${campaign.campaign_title}" has been approved and is now live!`,
+      campaign.creator_email,
+      "/dashboard/creator/my-campaigns",
+    );
+
+    res.json(campaign);
+  } catch {
+    res.status(500).json({ message: "Failed to approve campaign." });
+  }
+};
+
+// PATCH /api/campaigns/:id/reject — reject campaign (admin)
+export const rejectCampaign = async (req: Request, res: Response) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id);
+    if (!campaign) {
+      return res.status(404).json({ message: "Campaign not found." });
+    }
+
+    campaign.status = "rejected";
+    await campaign.save();
+
+    await createNotification(
+      `Your campaign "${campaign.campaign_title}" has been rejected. Please review the guidelines and resubmit.`,
+      campaign.creator_email,
+      "/dashboard/creator/my-campaigns",
+    );
+
+    res.json(campaign);
+  } catch {
+    res.status(500).json({ message: "Failed to reject campaign." });
+  }
+};
+
+// DELETE /api/campaigns/:id — delete campaign (admin)
+export const deleteCampaign = async (req: Request, res: Response) => {
+  try {
+    const campaign = await Campaign.findByIdAndDelete(req.params.id);
+    if (!campaign) {
+      return res.status(404).json({ message: "Campaign not found." });
+    }
+    res.json({ message: "Campaign deleted." });
+  } catch {
+    res.status(500).json({ message: "Failed to delete campaign." });
   }
 };

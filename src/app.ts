@@ -6,6 +6,12 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/authRoutes";
 import campaignRoutes from "./routes/campaignRoutes";
 import contributionRoutes from "./routes/contributionRoutes";
+import notificationRoutes from "./routes/notificationRoutes";
+import withdrawalRoutes from "./routes/withdrawalRoutes";
+import paymentRoutes from "./routes/paymentRoutes";
+import userRoutes from "./routes/userRoutes";
+import reportRoutes from "./routes/reportRoutes";
+import { errorHandler } from "./middleware/errorMiddleware";
 
 const app: Application = express();
 
@@ -50,8 +56,17 @@ app.get("/", (_req: Request, res: Response) => {
   res.send("Crowdfunding API is running...");
 });
 
+// Routes
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/contributions", contributionRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/withdrawals", withdrawalRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/reports", reportRoutes);
+
+// Error handler
+app.use(errorHandler);
 
 export default app;

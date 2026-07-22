@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Contribution from "../models/Contribution";
 import Campaign from "../models/Campaign";
 import User from "../models/User";
+import { createNotification } from "./notificationController";
 
 // POST /api/contributions — create a contribution (status = pending)
 export const createContribution = async (req: Request, res: Response) => {
@@ -45,6 +46,13 @@ export const createContribution = async (req: Request, res: Response) => {
       supporter.credits -= Contribution_amount;
       await supporter.save();
     }
+
+    // Notify creator
+    await createNotification(
+      `New contribution of ${Contribution_amount} credits to "${campaign_title}" from ${Supporter_name}.`,
+      creator_email,
+      "/dashboard/creator/home",
+    );
 
     res.status(201).json(contribution);
   } catch {
@@ -91,6 +99,13 @@ export const approveContribution = async (req: Request, res: Response) => {
       await campaign.save();
     }
 
+    // Notify supporter
+    await createNotification(
+      `Your contribution of ${contribution.Contribution_amount} credits to "${contribution.campaign_title}" was approved by ${contribution.creator_name}.`,
+      contribution.Supporter_email,
+      "/dashboard/supporter/my-contributions",
+    );
+
     res.json(contribution);
   } catch {
     res.status(500).json({ message: "Failed to approve contribution." });
@@ -117,6 +132,13 @@ export const rejectContribution = async (req: Request, res: Response) => {
       supporter.credits += contribution.Contribution_amount;
       await supporter.save();
     }
+
+    // Notify supporter
+    await createNotification(
+      `Your contribution of ${contribution.Contribution_amount} credits to "${contribution.campaign_title}" was rejected by ${contribution.creator_name}. Credits have been refunded.`,
+      contribution.Supporter_email,
+      "/dashboard/supporter/my-contributions",
+    );
 
     res.json(contribution);
   } catch {
