@@ -19,7 +19,16 @@ function getFirebaseAuth() {
   return getAuth();
 }
 
+function getSecret(): string {
+  const JWT_SECRET = process.env.JWT_SECRET;
+  if (!JWT_SECRET) {
+    throw new Error("JWT_SECRET environment variable is required");
+  }
+  return JWT_SECRET;
+}
+
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+const BCRYPT_ROUNDS = 12;
 
 function setAuthCookie(res: Response, token: string) {
   res.cookie("token", token, {
@@ -27,16 +36,23 @@ function setAuthCookie(res: Response, token: string) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge: COOKIE_MAX_AGE,
+    path: "/",
   });
 }
 
 function generateToken(id: string, email: string, role: string) {
-  return jwt.sign({ id, email, role }, process.env.JWT_SECRET || "fallback_secret", {
-    expiresIn: "7d",
-  });
+  return jwt.sign({ id, email, role }, getSecret(), { expiresIn: "7d" });
 }
 
-function userResponse(user: any, token: string) {
+function verifyToken(token: string) {
+  return jwt.verify(token, getSecret()) as jwt.JwtPayload & {
+    id: string;
+    email: string;
+    role: string;
+  };
+}
+
+function userResponse(user: any) {
   return {
     _id: user._id,
     name: user.name,
@@ -44,7 +60,6 @@ function userResponse(user: any, token: string) {
     photoURL: user.photoURL,
     role: user.role,
     credits: user.credits,
-    token,
   };
 }
 
@@ -56,25 +71,13 @@ export const getMe = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Not authenticated." });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret") as {
-      id: string;
-      email: string;
-      role: string;
-    };
-
+    const decoded = verifyToken(token);
     const user = await User.findById(decoded.id).select("-password");
     if (!user) {
       return res.status(401).json({ message: "User not found." });
     }
 
-    res.status(200).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      photoURL: user.photoURL,
-      role: user.role,
-      credits: user.credits,
-    });
+    res.status(200).json(userResponse(user));
   } catch {
     return res.status(401).json({ message: "Invalid or expired token." });
   }
@@ -83,11 +86,30 @@ export const getMe = async (req: Request, res: Response) => {
 // POST /api/auth/register
 export const registerUser = async (req: Request, res: Response) => {
   try {
-    // Clear any stale session cookie
     res.clearCookie("token");
 
-    const { name, email, password, photoURL, role } = req.body;
-    console.log("Register attempt:", { name, email });
+    const { name, email, password, photoURL } = req.body;
+
+    // Input validation
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Name, email, and password are required." });
+    }
+
+    if (typeof name !== "string" || name.trim().length < 2 || name.length > 50) {
+      return res.status(400).json({ message: "Name must be 2-50 characters." });
+    }
+
+    if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: "Invalid email format." });
+    }
+
+    if (typeof password !== "string" || password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters." });
+    }
+
+    if (password.length > 128) {
+      return res.status(400).json({ message: "Password is too long." });
+    }
 
     const userExists = await User.findOne({ email: email.toLowerCase() });
     if (userExists) {
@@ -97,23 +119,23 @@ export const registerUser = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "An account with this email already exists. Please log in instead." });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     const user = await User.create({
-      name,
+      name: name.trim(),
       email: email.toLowerCase(),
       password: hashedPassword,
       photoURL: photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=crowdnest",
-      role: role || "supporter",
+      role: "supporter", // Always default — never trust client-sent role
     });
 
     const token = generateToken(user._id.toString(), user.email, user.role);
+    setAuthCookie(res, token);
 
     console.log("New user created:", user._id, user.email);
-    res.status(201).json(userResponse(user, token));
+    res.status(201).json(userResponse(user));
   } catch (error) {
-    res.status(500).json({ message: "Server Error during registration.", error });
+    res.status(500).json({ message: "Server Error during registration." });
   }
 };
 
@@ -121,6 +143,10 @@ export const registerUser = async (req: Request, res: Response) => {
 export const loginUser = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required." });
+    }
 
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
@@ -139,9 +165,9 @@ export const loginUser = async (req: Request, res: Response) => {
     const token = generateToken(user._id.toString(), user.email, user.role);
     setAuthCookie(res, token);
 
-    res.status(200).json(userResponse(user, token));
+    res.status(200).json(userResponse(user));
   } catch (error) {
-    res.status(500).json({ message: "Server Error during login.", error });
+    res.status(500).json({ message: "Server Error during login." });
   }
 };
 
@@ -177,9 +203,9 @@ export const googleLogin = async (req: Request, res: Response) => {
     const token = generateToken(user._id.toString(), user.email, user.role);
     setAuthCookie(res, token);
 
-    res.status(200).json(userResponse(user, token));
+    res.status(200).json(userResponse(user));
   } catch (error) {
-    res.status(500).json({ message: "Google authentication failed.", error });
+    res.status(500).json({ message: "Google authentication failed." });
   }
 };
 
