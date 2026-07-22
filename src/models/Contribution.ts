@@ -9,6 +9,8 @@ export interface IContribution extends Document {
   creator_name: string;
   creator_email: string;
   current_date: Date;
+  message: string;
+  status: "pending" | "approved" | "rejected";
 }
 
 const ContributionSchema: Schema = new Schema(
@@ -25,6 +27,12 @@ const ContributionSchema: Schema = new Schema(
     creator_name: { type: String, required: true },
     creator_email: { type: String, required: true },
     current_date: { type: Date, default: Date.now },
+    message: { type: String, default: "" },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
   },
   { timestamps: true },
 );

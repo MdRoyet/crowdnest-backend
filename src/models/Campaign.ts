@@ -12,6 +12,9 @@ export interface ICampaign extends Document {
   image: string;
   status: "pending" | "approved" | "rejected" | "funded";
   creator_id: mongoose.Types.ObjectId;
+  minimum_contribution: number;
+  reward_info: string;
+  campaign_story: string;
 }
 
 const CampaignSchema: Schema = new Schema(
@@ -24,8 +27,11 @@ const CampaignSchema: Schema = new Schema(
     funding_goal: { type: Number, required: true, min: 1 },
     amount_raised: { type: Number, default: 0 },
     description: { type: String, default: "" },
+    campaign_story: { type: String, default: "" },
     category: { type: String, default: "Technology" },
     image: { type: String, default: "" },
+    minimum_contribution: { type: Number, default: 1 },
+    reward_info: { type: String, default: "" },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected", "funded"],

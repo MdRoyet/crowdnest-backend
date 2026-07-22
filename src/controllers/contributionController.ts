@@ -1,8 +1,9 @@
 import { Request, Response } from "express";
 import Contribution from "../models/Contribution";
 import Campaign from "../models/Campaign";
+import User from "../models/User";
 
-// POST /api/contributions — create a contribution
+// POST /api/contributions — create a contribution (status = pending)
 export const createContribution = async (req: Request, res: Response) => {
   try {
     const {
@@ -13,6 +14,7 @@ export const createContribution = async (req: Request, res: Response) => {
       Supporter_name,
       creator_name,
       creator_email,
+      message,
     } = req.body;
 
     if (!campaign_id || !Contribution_amount || !Supporter_email) {
@@ -33,18 +35,92 @@ export const createContribution = async (req: Request, res: Response) => {
       creator_name: creator_name || campaign.creator_name,
       creator_email: creator_email || campaign.creator_email,
       current_date: new Date(),
+      message: message || "",
+      status: "pending",
     });
 
-    // Update amount_raised on the campaign
-    campaign.amount_raised += Contribution_amount;
-    if (campaign.amount_raised >= campaign.funding_goal) {
-      campaign.status = "funded";
+    // Deduct credits from supporter
+    const supporter = await User.findOne({ email: Supporter_email });
+    if (supporter) {
+      supporter.credits -= Contribution_amount;
+      await supporter.save();
     }
-    await campaign.save();
 
     res.status(201).json(contribution);
   } catch {
     res.status(500).json({ message: "Failed to create contribution." });
+  }
+};
+
+// GET /api/contributions/pending/:creatorEmail — get all pending contributions for a creator
+export const getPendingContributions = async (req: Request, res: Response) => {
+  try {
+    const contributions = await Contribution.find({
+      creator_email: req.params.creatorEmail,
+      status: "pending",
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(contributions);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch contributions." });
+  }
+};
+
+// PATCH /api/contributions/:id/approve — approve a contribution
+export const approveContribution = async (req: Request, res: Response) => {
+  try {
+    const contribution = await Contribution.findById(req.params.id);
+    if (!contribution) {
+      return res.status(404).json({ message: "Contribution not found." });
+    }
+    if (contribution.status !== "pending") {
+      return res.status(400).json({ message: "Contribution already processed." });
+    }
+
+    contribution.status = "approved";
+    await contribution.save();
+
+    // Add amount to campaign's raised
+    const campaign = await Campaign.findById(contribution.campaign_id);
+    if (campaign) {
+      campaign.amount_raised += contribution.Contribution_amount;
+      if (campaign.amount_raised >= campaign.funding_goal) {
+        campaign.status = "funded";
+      }
+      await campaign.save();
+    }
+
+    res.json(contribution);
+  } catch {
+    res.status(500).json({ message: "Failed to approve contribution." });
+  }
+};
+
+// PATCH /api/contributions/:id/reject — reject a contribution
+export const rejectContribution = async (req: Request, res: Response) => {
+  try {
+    const contribution = await Contribution.findById(req.params.id);
+    if (!contribution) {
+      return res.status(404).json({ message: "Contribution not found." });
+    }
+    if (contribution.status !== "pending") {
+      return res.status(400).json({ message: "Contribution already processed." });
+    }
+
+    contribution.status = "rejected";
+    await contribution.save();
+
+    // Refund credits to supporter
+    const supporter = await User.findOne({ email: contribution.Supporter_email });
+    if (supporter) {
+      supporter.credits += contribution.Contribution_amount;
+      await supporter.save();
+    }
+
+    res.json(contribution);
+  } catch {
+    res.status(500).json({ message: "Failed to reject contribution." });
   }
 };
 
@@ -53,6 +129,20 @@ export const getContributionsByCampaign = async (req: Request, res: Response) =>
   try {
     const contributions = await Contribution.find({
       campaign_id: req.params.campaignId,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(contributions);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch contributions." });
+  }
+};
+
+// GET /api/contributions/supporter/:email — get all contributions by a supporter
+export const getContributionsBySupporter = async (req: Request, res: Response) => {
+  try {
+    const contributions = await Contribution.find({
+      Supporter_email: req.params.email,
     })
       .sort({ createdAt: -1 })
       .lean();
