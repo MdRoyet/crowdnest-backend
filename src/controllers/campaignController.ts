@@ -191,7 +191,7 @@ export const rejectCampaign = async (req: Request, res: Response) => {
   }
 };
 
-// DELETE /api/campaigns/:id — delete campaign (admin)
+// DELETE /api/campaigns/:id — delete campaign
 export const deleteCampaign = async (req: Request, res: Response) => {
   try {
     const campaign = await Campaign.findByIdAndDelete(req.params.id);
@@ -201,5 +201,28 @@ export const deleteCampaign = async (req: Request, res: Response) => {
     res.json({ message: "Campaign deleted." });
   } catch {
     res.status(500).json({ message: "Failed to delete campaign." });
+  }
+};
+
+// PUT /api/campaigns/:id — update campaign
+export const updateCampaign = async (req: Request, res: Response) => {
+  try {
+    const { campaign_title, campaign_story, reward_info } = req.body;
+    const campaign = await Campaign.findById(req.params.id);
+    if (!campaign) {
+      return res.status(404).json({ message: "Campaign not found." });
+    }
+
+    if (campaign_title !== undefined) campaign.campaign_title = campaign_title;
+    if (campaign_story !== undefined) {
+      campaign.campaign_story = campaign_story;
+      campaign.description = campaign_story;
+    }
+    if (reward_info !== undefined) campaign.reward_info = reward_info;
+
+    await campaign.save();
+    res.json(campaign);
+  } catch {
+    res.status(500).json({ message: "Failed to update campaign." });
   }
 };

@@ -11,6 +11,7 @@ import withdrawalRoutes from "./routes/withdrawalRoutes";
 import paymentRoutes from "./routes/paymentRoutes";
 import userRoutes from "./routes/userRoutes";
 import reportRoutes from "./routes/reportRoutes";
+import uploadRoutes from "./routes/uploadRoutes";
 import { errorHandler } from "./middleware/errorMiddleware";
 
 const app: Application = express();
@@ -65,6 +66,7 @@ app.use("/api/withdrawals", withdrawalRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // Error handler
 app.use(errorHandler);
