@@ -3,6 +3,7 @@ import Withdrawal from "../models/Withdrawal";
 import Campaign from "../models/Campaign";
 import User from "../models/User";
 import { createNotification } from "./notificationController";
+import { sendEmail, withdrawalApprovedEmail } from "../utils/emailSender";
 
 // POST /api/withdrawals — create a withdrawal request
 export const createWithdrawal = async (req: Request, res: Response) => {
@@ -124,6 +125,14 @@ export const approveWithdrawal = async (req: Request, res: Response) => {
       withdrawal.creator_email,
       "/dashboard/creator/withdrawals",
     );
+
+    // Email creator
+    const email = withdrawalApprovedEmail(
+      withdrawal.creator_name,
+      withdrawal.withdrawal_credit,
+      withdrawal.withdrawal_amount,
+    );
+    sendEmail({ to: withdrawal.creator_email, ...email });
 
     res.json(withdrawal);
   } catch {

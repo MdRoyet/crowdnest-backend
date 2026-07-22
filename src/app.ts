@@ -43,10 +43,10 @@ app.use(
   }),
 );
 
-// Stricter rate limit for auth endpoints (10 requests per 15 min)
+// Stricter rate limit for auth endpoints (50 requests per 15 min)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 50,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many auth attempts, please try again later." },

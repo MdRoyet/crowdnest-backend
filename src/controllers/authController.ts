@@ -88,7 +88,7 @@ export const registerUser = async (req: Request, res: Response) => {
   try {
     res.clearCookie("token");
 
-    const { name, email, password, photoURL } = req.body;
+    const { name, email, password, photoURL, role } = req.body;
 
     // Input validation
     if (!name || !email || !password) {
@@ -126,7 +126,7 @@ export const registerUser = async (req: Request, res: Response) => {
       email: email.toLowerCase(),
       password: hashedPassword,
       photoURL: photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=crowdnest",
-      role: "supporter", // Always default — never trust client-sent role
+      role: ["supporter", "creator"].includes(role) ? role : "supporter",
     });
 
     const token = generateToken(user._id.toString(), user.email, user.role);
