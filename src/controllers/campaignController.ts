@@ -1,11 +1,6 @@
 import { Request, Response } from "express";
 import Campaign from "../models/Campaign";
 import { createNotification } from "./notificationController";
-import {
-  sendEmail,
-  campaignApprovedEmail,
-  campaignRejectedEmail,
-} from "../utils/emailSender";
 
 // GET /api/campaigns — public, all approved campaigns
 export const getCampaigns = async (req: Request, res: Response) => {
@@ -167,13 +162,6 @@ export const approveCampaign = async (req: Request, res: Response) => {
       "/dashboard/creator/my-campaigns",
     );
 
-    // Email creator
-    const email = campaignApprovedEmail(
-      campaign.creator_name,
-      campaign.campaign_title,
-    );
-    sendEmail({ to: campaign.creator_email, ...email });
-
     res.json(campaign);
   } catch {
     res.status(500).json({ message: "Failed to approve campaign." });
@@ -196,13 +184,6 @@ export const rejectCampaign = async (req: Request, res: Response) => {
       campaign.creator_email,
       "/dashboard/creator/my-campaigns",
     );
-
-    // Email creator
-    const email = campaignRejectedEmail(
-      campaign.creator_name,
-      campaign.campaign_title,
-    );
-    sendEmail({ to: campaign.creator_email, ...email });
 
     res.json(campaign);
   } catch {

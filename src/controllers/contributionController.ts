@@ -3,12 +3,6 @@ import Contribution from "../models/Contribution";
 import Campaign from "../models/Campaign";
 import User from "../models/User";
 import { createNotification } from "./notificationController";
-import {
-  sendEmail,
-  contributionApprovedEmail,
-  contributionRejectedEmail,
-  newContributionEmail,
-} from "../utils/emailSender";
 
 // POST /api/contributions — create a contribution (status = pending)
 export const createContribution = async (req: Request, res: Response) => {
@@ -59,15 +53,6 @@ export const createContribution = async (req: Request, res: Response) => {
       creator_email,
       "/dashboard/creator/home",
     );
-
-    // Email creator
-    const email = newContributionEmail(
-      creator_name,
-      Supporter_name,
-      campaign_title,
-      Contribution_amount,
-    );
-    sendEmail({ to: creator_email, ...email });
 
     res.status(201).json(contribution);
   } catch {
@@ -121,15 +106,6 @@ export const approveContribution = async (req: Request, res: Response) => {
       "/dashboard/supporter/my-contributions",
     );
 
-    // Email supporter
-    const email = contributionApprovedEmail(
-      contribution.Supporter_name,
-      contribution.campaign_title,
-      contribution.Contribution_amount,
-      contribution.creator_name,
-    );
-    sendEmail({ to: contribution.Supporter_email, ...email });
-
     res.json(contribution);
   } catch {
     res.status(500).json({ message: "Failed to approve contribution." });
@@ -163,15 +139,6 @@ export const rejectContribution = async (req: Request, res: Response) => {
       contribution.Supporter_email,
       "/dashboard/supporter/my-contributions",
     );
-
-    // Email supporter
-    const email = contributionRejectedEmail(
-      contribution.Supporter_name,
-      contribution.campaign_title,
-      contribution.Contribution_amount,
-      contribution.creator_name,
-    );
-    sendEmail({ to: contribution.Supporter_email, ...email });
 
     res.json(contribution);
   } catch {
