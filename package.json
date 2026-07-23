@@ -1,8 +1,8 @@
 {
   "name": "crowdnest-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "CrowdNest Crowdfunding Platform API",
+  "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon",
     "build": "tsc",
