@@ -1,3 +1,4 @@
 // Entry point for Render deployment
-// This file is used when Render looks for index.js at the root
+// postinstall runs "npm run build" which compiles TS to dist/
+// This file loads the compiled server
 require("./dist/server");
